@@ -36,22 +36,37 @@ jobs:
           sed -i "s|__SITE_TITLE__|${{ vars.SITE_TITLE }}|g" app.js
           sed -i "s|__DEPLOY_TIME__|${DEPLOY_TIME}|g" app.js
 
-      - name: Deploy to EC2 via SSH
+      - name: Deploy to EC2 via SSH (DEBUG)
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
           DEPLOY_USER: ${{ vars.DEPLOY_USER }}
         run: |
+          set -euxo pipefail
+
+          echo "== DEBUG: checking variables =="
+          echo "HOST=$DEPLOY_HOST"
+          echo "USER=$DEPLOY_USER"
+          echo "PATH=$DEPLOY_PATH"
+          echo "KEY_LENGTH=${#SSH_PRIVATE_KEY}"
+
           mkdir -p ~/.ssh
+
           echo "$SSH_PRIVATE_KEY" | base64 --decode > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+
           ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
-          scp -i ~/.ssh/deploy_key index.html style.css app.js \
-            $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/
+          echo "== DEBUG: testing SSH =="
+          ssh -vvv -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "echo SSH_OK"
 
-          echo "✅ Deployed to $DEPLOY_HOST:$DEPLOY_PATH"
+          echo "== DEBUG: deploying files =="
+          scp -vvv -i ~/.ssh/deploy_key index.html style.css app.js \
+            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+
+          echo "✅ DEPLOY COMPLETE"
+
 
       - name: Verify deployment
         env:
